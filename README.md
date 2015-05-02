@@ -21,7 +21,8 @@ $ pip install -r requirements.txt
 $ fab -l
 Available commands:
 
-    dev.init
+    dev.init      fab -H <host> dev.init
+    dev.sender    fab -H <host> dev.sender:<fluentd_recv_host>
     tail.file     fab -H <host> tail.file:/var/log/syslog
     tail.job      fab -H <host> tail.job:warden
     warden.login  fab -H <host> warden.login:hdfjariej
@@ -39,7 +40,18 @@ Displaying detailed information for task 'warden.pp':
     Arguments:
 
 
-###
+##############
+
+
+## ツール一式のインストール
+fab -H 10.244.0.138,10.244.0.42,10.244.0.34,10.244.0.142,10.244.0.150,10.244.0.146,10.244.0.134,10.244.0.6,10.244.0.30,10.244.0.22,10.244.0.26,10.244.0.130 dev.init
+
+
+## fluentdのログ転送設定
+fab -H 10.244.0.138,10.244.0.42,10.244.0.34,10.244.0.142,10.244.0.150,10.244.0.146,10.244.0.134,10.244.0.6,10.244.0.30,10.244.0.22,10.244.0.26,10.244.0.130 dev.sender:192.168.1.220
+
+
+##############
 
 
 ## warden(アプリ)の一覧
@@ -52,7 +64,6 @@ $ fab -H 10.244.0.26 warden.pp
 18klh91fs6l go3 308a25fa-5e2c-4c27-9537-0defa9b112cc RUNNING
 
 
-
 ## wardenへログイン
 $ fab -H 10.244.0.26 warden.login:18klh91fs6l
 [10.244.0.26] Executing task 'warden.login'
@@ -61,8 +72,7 @@ sudo password:
 vcap@18klh91fs6l:~$
 
 
-
-###
+##############
 
 
 ## ログのtail パス指定

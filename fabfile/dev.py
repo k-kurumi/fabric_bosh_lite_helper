@@ -42,9 +42,9 @@ def init():
 
 @task
 @parallel
-def sender(fluentd_recv_host):
+def fluentd_forward(fluentd_recv_host):
   u'''
-  fab -H <host> dev.sender:<fluentd_recv_host>
+  fab -H <host> dev.fluentd_forward:<fluentd_recv_host>
   ログ収集用のfluentdを設定する
   '''
   fluentd(fluentd_recv_host)

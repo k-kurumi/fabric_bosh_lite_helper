@@ -22,7 +22,7 @@ $ fab -l
 Available commands:
 
     dev.init      fab -H <host> dev.init
-    dev.sender    fab -H <host> dev.sender:<fluentd_recv_host>
+    dev.fluentd_forward    fab -H <host> dev.sender:<fluentd_recv_host>
     tail.file     fab -H <host> tail.file:/var/log/syslog
     tail.job      fab -H <host> tail.job:warden
     warden.login  fab -H <host> warden.login:hdfjariej
@@ -48,7 +48,7 @@ fab -H 10.244.0.138,10.244.0.42,10.244.0.34,10.244.0.142,10.244.0.150,10.244.0.1
 
 
 ## fluentdのログ転送設定
-fab -H 10.244.0.138,10.244.0.42,10.244.0.34,10.244.0.142,10.244.0.150,10.244.0.146,10.244.0.134,10.244.0.6,10.244.0.30,10.244.0.22,10.244.0.26,10.244.0.130 dev.sender:192.168.1.220
+fab -H 10.244.0.138,10.244.0.42,10.244.0.34,10.244.0.142,10.244.0.150,10.244.0.146,10.244.0.134,10.244.0.6,10.244.0.30,10.244.0.22,10.244.0.26,10.244.0.130 dev.fluentd_forward:192.168.1.220
 
 
 ##############

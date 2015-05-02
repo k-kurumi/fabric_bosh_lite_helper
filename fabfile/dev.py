@@ -3,14 +3,18 @@
 
 from fabric.api import run, sudo, cd, task, env
 from fabric.contrib import files
+from fabric.decorators import parallel
+
+import os
 
 from .apt import install as apt_install, build_dep as apt_build_dep
 
 @task
-def init(fluentd_recv_host):
+@parallel
+def init():
   u'''
-  fab -H <host> dev.init:192.168.1.220
-  fluentdのforward受信側IPを指定して、関連ツール一式をインストールする
+  fab -H <host> dev.init
+  vcapユーザに便利ツール一式をインストールする
   '''
   # NOTE vagrantにmosh接続は表示がおかしくなる(udp関連かも)
   pkg = """
@@ -32,9 +36,17 @@ def init(fluentd_recv_host):
 
   pt()
   jq()
-  vim_latest()
   dotfiles()
+  ssh_setting()
 
+
+@task
+@parallel
+def sender(fluentd_recv_host):
+  u'''
+  fab -H <host> dev.sender:<fluentd_recv_host>
+  ログ収集用のfluentdを設定する
+  '''
   fluentd(fluentd_recv_host)
   rsyslog()
 
@@ -42,7 +54,9 @@ def init(fluentd_recv_host):
 def pt():
   if not files.exists('/usr/local/bin/pt'):
     with cd('/tmp'):
-      run('wget https://github.com/monochromegane/the_platinum_searcher/releases/download/v1.7.6/pt_linux_amd64.tar.gz')
+      if not files.exists('pt_linux_amd64.tar.gz'):
+        run('wget https://github.com/monochromegane/the_platinum_searcher/releases/download/v1.7.6/pt_linux_amd64.tar.gz')
+
       run('tar zxvf pt_linux_amd64.tar.gz')
       sudo('cp pt_linux_amd64/pt /usr/local/bin')
 
@@ -50,7 +64,9 @@ def pt():
 def jq():
   if not files.exists('/usr/local/bin/jq'):
     with cd('/tmp'):
-      run('wget http://stedolan.github.io/jq/download/linux64/jq')
+      if not files.exists('jq'):
+        run('wget http://stedolan.github.io/jq/download/linux64/jq')
+
       run('chmod +x jq')
       sudo('cp jq /usr/local/bin')
 
@@ -58,7 +74,9 @@ def jq():
 def gosteno():
   if not files.exists('/usr/local/bin/gosteno-prettify'):
     with cd('/tmp'):
-      run('wget https://github.com/nsnt/gosteno/releases/download/v158/gosteno-prettify-bin.v151.zip')
+      if not files.exists('gosteno-prettify-bin.v151.zip'):
+        run('wget https://github.com/nsnt/gosteno/releases/download/v158/gosteno-prettify-bin.v151.zip')
+
       run('unzip -o gosteno-prettify-bin.v151.zip')
       sudo('cp ./gosteno-prettify /usr/local/bin')
 
@@ -74,6 +92,16 @@ def dotfiles():
     # neobundle
     run('curl https://raw.githubusercontent.com/Shougo/neobundle.vim/master/bin/install.sh | sh')
     run('~/.vim/bundle/neobundle.vim/bin/neoinstall')
+
+
+def ssh_setting():
+  if os.path.exists(os.path.expanduser('~/.ssh/id_rsa.pub')):
+    with open(os.path.expanduser('~/.ssh/id_rsa.pub')) as fp:
+      run('''mkdir ~/.ssh''')
+      run('''echo "%s" >> ~/.ssh/authorized_keys''' % fp.read())
+
+  run('''echo 'export PATH=/var/vcap/bosh/bin:$PATH' >> ~/.shenv_local''')
+  sudo('''echo 'vcap ALL=NOPASSWD: ALL' > /etc/sudoers.d/vcap''')
 
 
 def vim_latest():
@@ -109,7 +137,9 @@ def vim_latest():
 
 def fluentd(fluentd_recv_host):
   with cd('/tmp'):
-    run('wget http://packages.treasuredata.com/2/ubuntu/trusty/pool/contrib/t/td-agent/td-agent_2.2.0-0_amd64.deb')
+    if not files.exists('td-agent_2.2.0-0_amd64.deb'):
+      run('wget http://packages.treasuredata.com/2/ubuntu/trusty/pool/contrib/t/td-agent/td-agent_2.2.0-0_amd64.deb')
+
     sudo('dpkg -i td-agent_2.2.0-0_amd64.deb')
     sudo(""" cat << EOF > /etc/td-agent/td-agent.conf
 <source>
@@ -160,17 +190,20 @@ EOF
   sudo('/etc/init.d/td-agent restart')
 
 
-
 def rsyslog():
   u'''
-  行末にvcapの廃棄設定が入っていることが前提のため、変更されているとうまく動かない
+  ローカルのfluentdへのvcapログ転送を設定する
   '''
+  # TODO /etc/rsyslog.dに直接配置すればmetronの有無に左右されない(ジョブ名の判定が必要になる)
 
-  # vcapを捨てる部分をコメントにする
-#  sudo(""" sed -i 's/^\(:programname, startswith, "vcap." ~\)$/#\1/' '/var/vcap/jobs/metron_agent/config/syslog_forwarder.conf' """)
+  # NOTE loggregatorにはmetronが無い
+  if files.exists('/var/vcap/jobs/metron_agent/config/syslog_forwarder.conf'):
+    if not files.contains('/var/vcap/jobs/metron_agent/config/syslog_forwarder.conf', ':programname, startswith, "vcap." @127.0.0.1:51400;CfLogTemplate'):
+      # 行末にvcapを捨てる設定が入っているため、その上の行へ追記する
+      sudo(""" sed -i.bak '$i:programname, startswith, "vcap." @127.0.0.1:51400;CfLogTemplate' '/var/vcap/jobs/metron_agent/config/syslog_forwarder.conf' """)
 
-  # 行末にfluentd宛の転送を追加する(.bakでバックアップ作成)
-  sudo(""" sed -i.bak '$i:programname, startswith, "vcap." @127.0.0.1:51400;CfLogTemplate' '/var/vcap/jobs/metron_agent/config/syslog_forwarder.conf' """)
+      # metron_agentの再起動で /etc/rsyslog.d/ も更新される
+      sudo("/var/vcap/bosh/bin/monit restart metron_agent")
 
-  # metron_agentの再起動で /etc/rsyslog.d/ も更新される
-  sudo("/var/vcap/bosh/bin/monit restart all")
+    else:
+      print "already metron setting"

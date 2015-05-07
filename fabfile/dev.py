@@ -36,6 +36,7 @@ def init():
 
   pt()
   jq()
+  gosteno()
   dotfiles()
   ssh_setting()
 

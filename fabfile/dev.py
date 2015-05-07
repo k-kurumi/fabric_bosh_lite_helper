@@ -115,24 +115,29 @@ def vim_latest():
   apt_install(pkg)
   apt_build_dep('vim')
 
-  if not files.exists('~/dotfiles'):
-    run('git clone https://github.com/vim/vim.git')
+  if not files.exists('/usr/local/bin/vim'):
+    with cd('/tmp'):
+      if not files.exists('/tmp/vim'):
+        run('git clone https://github.com/vim/vim.git')
 
-    with cd('vim'):
-      run('''./configure \
-        --prefix=/usr/local \
-        --with-features=huge \
-        --enable-multibyte \
-        --enable-pythoninterp=yes \
-        --enable-rubyinterp=yes \
-        --enable-luainterp=yes \
-        --enable-cscope \
-        --enable-gpm \
-        --enable-cscope \
-        --enable-fail-if-missing
-        ''')
-      run('make')
-      sudo('make install')
+      with cd('vim'):
+        run('''./configure \
+          --prefix=/usr/local \
+          --with-features=huge \
+          --enable-multibyte \
+          --enable-pythoninterp=yes \
+          --enable-rubyinterp=yes \
+          --enable-luainterp=yes \
+          --enable-cscope \
+          --enable-gpm \
+          --enable-cscope \
+          --enable-fail-if-missing
+          ''')
+        run('make')
+        sudo('make install')
+
+  else:
+    print 'already installed: /usr/local/bin/vim'
 
 
 

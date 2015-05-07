@@ -3,13 +3,14 @@
 
 from fabric.api import env, sudo, task
 
+env.output_prefix = False
+
 @task
 def file(filename):
   u'''
   fab -H <host> tail.file:/var/log/syslog
   host上のログファイルをtail -Fする
   '''
-  env.output_prefix = False
   sudo('tail -F ' + filename)
 
 @task

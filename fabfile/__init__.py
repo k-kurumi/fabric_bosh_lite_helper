@@ -7,6 +7,7 @@ from fabric.api import env
 
 import tail
 import dev
+import fluentd
 import warden
 
 #env.hosts = []
